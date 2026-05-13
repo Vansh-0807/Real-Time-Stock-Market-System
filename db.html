@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Viewer</title>
+    <style>
+        :root {
+            --bg-dark: #1E1E2E;
+            --bg-card: #282A36;
+            --bg-panel: #282A36;
+            --border: #44475A;
+            --text-main: #F8F8F2;
+            --text-sub: #BD93F9;
+            --green: #50FA7B;
+            --red: #FF5555;
+            --table-header: #6272a4;
+            --table-row-alt: #383a59;
+        }
+
+        :root[data-theme="light"] {
+            --bg-dark: #F0F2F5;
+            --bg-card: #FFFFFF;
+            --bg-panel: #FFFFFF;
+            --border: #D1D5DA;
+            --text-main: #24292E;
+            --text-sub: #586069;
+            --green: #28A745;
+            --red: #D73A49;
+            --table-header: #e1e4e8;
+            --table-row-alt: #f6f8fa;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: radial-gradient(circle at center, var(--bg-card) 0%, var(--bg-dark) 100%);
+            background-attachment: fixed;
+            color: var(--text-main); 
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        #auth-bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        header {
+            padding: 20px 30px;
+            font-size: 24px;
+            font-weight: bold;
+            border-bottom: 1px solid var(--border);
+            background-color: var(--bg-card);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            z-index: 10;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px;
+            color: var(--text-main);
+            transition: transform 0.2s;
+        }
+
+        .icon-btn:hover { transform: scale(1.1); }
+
+        .container { 
+            max-width: 1000px; 
+            margin: 30px auto; 
+            padding: 0 20px;
+        }
+
+        .panel {
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        h1 { color: var(--green); text-align: center; margin-top: 0;}
+        h2 { color: var(--text-sub); border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-top: 0; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px;}
+        th, td { padding: 12px; border: 1px solid var(--border); text-align: left; }
+        th { background-color: var(--table-header); color: var(--text-main); }
+        :root[data-theme="light"] th { color: var(--text-main); }
+        :root[data-theme="light"] td { background-color: var(--bg-card); }
+        :root[data-theme="light"] tr:nth-child(even) td { background-color: var(--table-row-alt); }
+        :root:not([data-theme="light"]) tr:nth-child(even) { background-color: var(--table-row-alt); }
+        
+        .error { color: var(--red); font-weight: bold; }
+    </style>
+</head>
+<body>
+    <canvas id="auth-bg-canvas"></canvas>
+    <header style="position: relative;">
+        <div style="position: absolute; left: 50%; transform: translateX(-50%); pointer-events: none;">Admin Database Viewer</div>
+        <div style="margin-left: auto;">
+            <button id="theme-toggle" class="icon-btn" onclick="toggleTheme()" title="Toggle Theme">☀️</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="panel">
+            <!-- <h1>MySQL DB Contents</h1> -->
+            <div id="content">Loading...</div>
+        </div>
+    </div>
+    
+    <script>
+        function toggleTheme() {
+            const root = document.documentElement;
+            const btn = document.getElementById('theme-toggle');
+            if (root.getAttribute('data-theme') === 'light') {
+                root.removeAttribute('data-theme');
+                btn.innerText = '☀️';
+                localStorage.setItem('stockSimTheme', 'dark');
+            } else {
+                root.setAttribute('data-theme', 'light');
+                btn.innerText = '🌙';
+                localStorage.setItem('stockSimTheme', 'light');
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('stockSimTheme');
+            if (savedTheme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+                document.getElementById('theme-toggle').innerText = '🌙';
+            }
+            fetchData();
+            startAuthAnimation();
+        });
+
+        function startAuthAnimation() {
+            const canvas = document.getElementById('auth-bg-canvas');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            let mouseX = null;
+            let mouseY = null;
+            
+            window.addEventListener('mousemove', (e) => {
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            });
+            
+            window.addEventListener('mouseleave', () => {
+                mouseX = null;
+                mouseY = null;
+            });
+
+            const particles = [];
+            const floatingTexts = [];
+            const numParticles = 80;
+            
+            const style = getComputedStyle(document.documentElement);
+            const colorGreen = style.getPropertyValue('--green').trim() || '#50FA7B';
+            const colorRed = style.getPropertyValue('--red').trim() || '#FF5555';
+            
+            for(let i=0; i<numParticles; i++) {
+                particles.push({
+                    x: Math.random() * window.innerWidth,
+                    y: Math.random() * window.innerHeight,
+                    vx: (Math.random() - 0.5) * 1.5,
+                    vy: (Math.random() - 0.5) * 1.5,
+                    radius: Math.random() * 2 + 1,
+                    color: Math.random() > 0.5 ? colorGreen : colorRed,
+                    baseAlpha: Math.random() * 0.5 + 0.2
+                });
+            }
+
+            function draw(time) {
+                canvas.width = window.innerWidth * 2;
+                canvas.height = window.innerHeight * 2;
+                const realW = window.innerWidth;
+                const realH = window.innerHeight;
+                
+                ctx.scale(2, 2);
+                ctx.clearRect(0, 0, realW, realH);
+                
+                for(let i=0; i<particles.length; i++) {
+                    let p = particles[i];
+                    
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    
+                    if (p.x < 0 || p.x > realW) p.vx *= -1;
+                    if (p.y < 0 || p.y > realH) p.vy *= -1;
+                    
+                    if (mouseX !== null && mouseY !== null) {
+                        const dx = mouseX - p.x;
+                        const dy = mouseY - p.y;
+                        const dist = Math.sqrt(dx*dx + dy*dy);
+                        if (dist < 120) {
+                            p.vx += dx * 0.0005;
+                            p.vy += dy * 0.0005;
+                            
+                            ctx.beginPath();
+                            ctx.strokeStyle = p.color + Math.floor((1 - dist/120) * 80).toString(16).padStart(2, '0');
+                            ctx.lineWidth = 1;
+                            ctx.moveTo(p.x, p.y);
+                            ctx.lineTo(mouseX, mouseY);
+                            ctx.stroke();
+                        }
+                    }
+                    
+                    const speed = Math.sqrt(p.vx*p.vx + p.vy*p.vy);
+                    if (speed > 2) {
+                        p.vx = (p.vx / speed) * 2;
+                        p.vy = (p.vy / speed) * 2;
+                    }
+                    
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = p.color + Math.floor(p.baseAlpha * 255).toString(16).padStart(2, '0');
+                    ctx.fill();
+                    
+                    for(let j=i+1; j<particles.length; j++) {
+                        let p2 = particles[j];
+                        const dx = p.x - p2.x;
+                        const dy = p.y - p2.y;
+                        const dist = Math.sqrt(dx*dx + dy*dy);
+                        
+                        if (dist < 100) {
+                            ctx.beginPath();
+                            const alpha = Math.floor((1 - dist/100) * 50).toString(16).padStart(2, '0');
+                            ctx.strokeStyle = p.color + alpha;
+                            ctx.lineWidth = 0.5;
+                            ctx.moveTo(p.x, p.y);
+                            ctx.lineTo(p2.x, p2.y);
+                            ctx.stroke();
+                        }
+                    }
+                    
+                    if (Math.random() < 0.001) {
+                        const isUp = Math.random() > 0.5;
+                        const val = (Math.random() * 100).toFixed(2);
+                        floatingTexts.push({
+                            x: p.x,
+                            y: p.y,
+                            text: isUp ? `▲ $${val}` : `▼ $${val}`,
+                            color: isUp ? colorGreen : colorRed,
+                            life: 1.0
+                        });
+                    }
+                }
+                
+                for(let i = floatingTexts.length - 1; i >= 0; i--) {
+                    let ft = floatingTexts[i];
+                    ft.y -= 0.5;
+                    ft.life -= 0.01;
+                    
+                    if (ft.life <= 0) {
+                        floatingTexts.splice(i, 1);
+                        continue;
+                    }
+                    
+                    ctx.fillStyle = ft.color + Math.floor(ft.life * 255).toString(16).padStart(2, '0');
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(ft.text, ft.x, ft.y);
+                }
+                
+                requestAnimationFrame(draw);
+            }
+            requestAnimationFrame(draw);
+        }
+
+        const API_BASE = 'http://localhost:8080/api';
+
+        function fetchData() {
+            fetch(`${API_BASE}/admin/db`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('content').innerHTML = `<p class="error">Error: ${data.error}</p>`;
+                        return;
+                    }
+                    
+                    const userActivity = {};
+                    data.users.forEach(u => userActivity[u.username] = 0);
+                    data.transactions.forEach(t => {
+                        userActivity[t.username] = (userActivity[t.username] || 0) + 1;
+                    });
+
+                    // Sort data arrays by user activity (descending)
+                    data.users.sort((a, b) => (userActivity[b.username] || 0) - (userActivity[a.username] || 0));
+                    data.portfolios.sort((a, b) => (userActivity[b.username] || 0) - (userActivity[a.username] || 0));
+                    data.holdings.sort((a, b) => {
+                        const diff = (userActivity[b.username] || 0) - (userActivity[a.username] || 0);
+                        return diff !== 0 ? diff : a.symbol.localeCompare(b.symbol); // fallback to symbol sort if activity is equal
+                    });
+
+                    let html = '';
+                    
+                    // Users
+                    html += '<h2 style="margin-top: 20px;">Users</h2>';
+                    if (data.users.length === 0) html += '<p>No users found.</p>';
+                    else {
+                        html += '<table><tr><th>Username</th><th>Activity (Transactions)</th></tr>';
+                        data.users.forEach(u => html += `<tr><td>${u.username}</td><td>${userActivity[u.username] || 0}</td></tr>`);
+                        html += '</table>';
+                    }
+                    
+                    // Portfolios
+                    html += '<h2 style="margin-top: 30px;">Portfolios</h2>';
+                    if (data.portfolios.length === 0) html += '<p>No portfolios found.</p>';
+                    else {
+                        html += '<table><tr><th>Username</th><th>Balance</th></tr>';
+                        data.portfolios.forEach(p => html += `<tr><td>${p.username}</td><td>$${p.balance.toFixed(2)}</td></tr>`);
+                        html += '</table>';
+                    }
+                    
+                    // Holdings
+                    html += '<h2 style="margin-top: 30px;">Holdings</h2>';
+                    if (data.holdings.length === 0) html += '<p>No holdings found.</p>';
+                    else {
+                        html += '<table><tr><th>Username</th><th>Symbol</th><th>Quantity</th></tr>';
+                        data.holdings.forEach(h => html += `<tr><td>${h.username}</td><td>${h.symbol}</td><td>${h.quantity}</td></tr>`);
+                        html += '</table>';
+                    }
+                    
+                    // Transactions
+                    html += '<h2 style="margin-top: 30px;">Transactions</h2>';
+                    if (data.transactions.length === 0) html += '<p>No transactions found.</p>';
+                    else {
+                        html += '<table><tr><th>ID</th><th>Username</th><th>Type</th><th>Symbol</th><th>Qty</th><th>Price</th><th>Time</th></tr>';
+                        data.transactions.forEach(t => html += `<tr><td>${t.id}</td><td>${t.username}</td><td>${t.type}</td><td>${t.symbol}</td><td>${t.quantity}</td><td>$${t.price.toFixed(2)}</td><td>${t.timestamp}</td></tr>`);
+                        html += '</table>';
+                    }
+                    
+                    document.getElementById('content').innerHTML = html;
+                })
+                .catch(err => {
+                    document.getElementById('content').innerHTML = `<p class="error">Failed to load data: ${err.message}</p>`;
+                });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Stock Market </title>
+    <style>
+        /* Modern Dark Theme Variables */
+        :root {
+            --bg-dark: #1E1E2E;
+            --bg-card: #282A36;
+            --bg-panel: #282A36;
+            --bg-input: #44475A;
+            --bg-auth: rgba(40, 42, 54, 0.8);
+            --border: #44475A;
+            --text-main: #F8F8F2;
+            --text-sub: #BD93F9;
+            --text-input: #F8F8F2;
+            --green: #50FA7B;
+            --red: #FF5555;
+        }
+
+        :root[data-theme="light"] {
+            --bg-dark: #F0F2F5;
+            --bg-card: #FFFFFF;
+            --bg-panel: #FFFFFF;
+            --bg-input: #FFFFFF;
+            --bg-auth: rgba(255, 255, 255, 0.85);
+            --border: #D1D5DA;
+            --text-main: #24292E;
+            --text-sub: #586069;
+            --text-input: #24292E;
+            --green: #28A745;
+            --red: #D73A49;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        header {
+            padding: 20px 30px;
+            font-size: 24px;
+            font-weight: bold;
+            border-bottom: 1px solid var(--border);
+            background-color: var(--bg-card);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .container {
+            padding: 20px 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Stock Cards Grid Layout */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+
+        .symbol { font-size: 22px; font-weight: bold; }
+        .name { font-size: 13px; color: var(--text-sub); }
+        .price { font-size: 28px; font-weight: bold; margin-top: 5px; }
+        .change { font-size: 14px; font-weight: bold; }
+        
+        .positive { color: var(--green); }
+        .negative { color: var(--red); }
+
+        /* Animated Sparkline Canvas */
+        canvas {
+            width: 100%;
+            height: 60px;
+            margin-top: 10px;
+            border-radius: 4px;
+        }
+
+        /* Dashboard Section */
+        .dashboard {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .panel {
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            flex: 1;
+            min-width: 300px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .panel h2 {
+            margin-top: 0;
+            font-size: 18px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        /* Forms */
+        .form-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        select, input {
+            background-color: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text-input);
+            padding: 10px;
+            border-radius: 6px;
+            outline: none;
+            font-size: 14px;
+        }
+
+        button {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            transition: filter 0.2s;
+        }
+
+        button:hover { filter: brightness(1.1); }
+        
+        .btn-buy { background-color: var(--green); color: #1E1E2E; }
+        .btn-sell { background-color: var(--red); color: white; }
+
+        /* Portfolio */
+        .portfolio-summary {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .portfolio-summary div {
+            background: var(--bg-dark);
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            font-size: 14px;
+            color: var(--text-sub);
+        }
+
+        .portfolio-summary strong {
+            font-size: 18px;
+            color: var(--text-main);
+            display: block;
+            margin-top: 5px;
+        }
+
+        .portfolio-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 10px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 500;
+        }
+        
+        .portfolio-item:last-child {
+            border-bottom: none;
+        }
+
+        /* Enhanced Auth Screen */
+        .auth-container {
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: calc(100vh - 80px);
+            background: radial-gradient(circle at center, var(--bg-card) 0%, var(--bg-dark) 100%);
+            perspective: 1000px;
+        }
+
+        #auth-bg-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .auth-card {
+            z-index: 1;
+            background: var(--bg-auth);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(80, 250, 123, 0.2);
+            border-radius: 16px;
+            padding: 50px;
+            width: 100%;
+            max-width: 440px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(80, 250, 123, 0.1);
+            transform: translateY(0);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .auth-card:hover {
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 30px rgba(80, 250, 123, 0.2);
+        }
+
+        .auth-card h2 { 
+            margin-top: 0; 
+            text-align: center; 
+            font-size: 28px;
+            margin-bottom: 25px;
+            background: linear-gradient(to right, var(--green), var(--text-sub));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            transition: opacity 0.3s ease;
+        }
+
+        .auth-form { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 20px; 
+            transition: opacity 0.3s ease;
+        }
+
+        .auth-form input { 
+            width: 100%; 
+            box-sizing: border-box; 
+            padding: 12px 15px;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-input);
+            font-size: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .auth-form input:focus {
+            outline: none;
+            border-color: var(--green);
+            box-shadow: 0 0 10px rgba(80, 250, 123, 0.2);
+            transform: scale(1.02);
+            background-color: var(--bg-card);
+        }
+
+        .auth-btn {
+            background: linear-gradient(135deg, var(--green), #3ECA6B);
+            color: #1E1E2E;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 15px rgba(80, 250, 123, 0.3);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .auth-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(80, 250, 123, 0.4);
+            filter: brightness(1.1);
+        }
+
+        .auth-btn:active {
+            transform: translateY(1px);
+        }
+
+        .auth-toggle { 
+            text-align: center; 
+            font-size: 14px; 
+            margin-top: 20px; 
+            color: var(--text-sub); 
+            cursor: pointer; 
+            transition: color 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
+        }
+
+        .auth-toggle:hover { 
+            color: var(--green); 
+            transform: scale(1.05);
+        }
+        
+        .hidden { display: none !important; }
+
+        /* Header Controls */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .icon-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px;
+            color: var(--text-main);
+            transition: transform 0.2s;
+        }
+        .icon-btn:hover { transform: scale(1.1); }
+        .account-area {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: var(--bg-panel);
+            padding: 6px 16px;
+            border-radius: 30px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: bold;
+            font-size: 15px;
+        }
+        .user-avatar {
+            background: var(--green);
+            color: #1E1E2E;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+        .logout-btn {
+            background: none;
+            border: none;
+            color: var(--red);
+            padding: 5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: transform 0.2s;
+        }
+        .logout-btn:hover { transform: scale(1.1); }
+    </style>
+</head>
+<body>
+
+    <header style="position: relative;">
+        <div style="position: absolute; left: 50%; transform: translateX(-50%); pointer-events: none;">Real-Time Stock Market</div>
+        <div class="header-controls" style="margin-left: auto;">
+            <button id="theme-toggle" class="icon-btn" onclick="toggleTheme()" title="Toggle Theme">☀️</button>
+            <div id="account-area" class="account-area hidden">
+                <div class="user-profile">
+                    <div class="user-avatar" id="avatar-icon">U</div>
+                    <span id="current-username">User</span>
+                </div>
+                <button class="logout-btn" onclick="handleLogout()" title="Logout">
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Auth View -->
+    <div id="auth-view" class="auth-container">
+        <canvas id="auth-bg-canvas"></canvas>
+        <div class="auth-card">
+            <h2 id="auth-title">Welcome Back</h2>
+            <div class="auth-form">
+                <input type="text" id="auth-user" placeholder="Username" required>
+                <input type="password" id="auth-pass" placeholder="Password" required>
+                <button class="auth-btn" id="auth-btn" onclick="submitAuth()">Login</button>
+            </div>
+            <p id="auth-msg" style="color: var(--red); font-size: 14px; text-align: center; margin-top: 10px; height: 16px; transition: opacity 0.3s ease;"></p>
+            <div id="auth-toggle" class="auth-toggle" onclick="toggleAuthMode()">Don't have an account? Sign up here</div>
+        </div>
+    </div>
+
+    <!-- Main App View -->
+    <div id="app-view" class="container hidden">
+        <!-- Stock Cards -->
+        <div class="grid" id="stock-grid"></div>
+
+        <!-- Trading & Portfolio Dashboard -->
+        <div class="dashboard">
+            <div class="panel">
+                <h2>Buy Stocks</h2>
+                <div class="form-group">
+                    <label style="width: 70px;">Symbol:</label>
+                    <select id="buy-symbol" style="flex:1;"></select>
+                </div>
+                <div class="form-group">
+                    <label style="width: 70px;">Quantity:</label>
+                    <input type="number" id="buy-qty" value="0" min="0" style="flex:1;">
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button class="btn-buy" style="flex:1;" onclick="executeTrade('buy')">Buy Shares</button>
+                </div>
+                <p id="buy-msg" style="margin-top:15px; font-size:14px; text-align: center; font-weight: bold;"></p>
+            </div>
+
+            <div class="panel">
+                <h2>Sell Stocks</h2>
+                <div class="form-group">
+                    <label style="width: 70px;">Symbol:</label>
+                    <select id="sell-symbol" style="flex:1;"></select>
+                </div>
+                <div class="form-group">
+                    <label style="width: 70px;">Quantity:</label>
+                    <input type="number" id="sell-qty" value="0" min="0" style="flex:1;">
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button class="btn-sell" style="flex:1;" onclick="executeTrade('sell')">Sell Shares</button>
+                </div>
+                <p id="sell-msg" style="margin-top:15px; font-size:14px; text-align: center; font-weight: bold;"></p>
+            </div>
+            
+            <div class="panel">
+                <h2>Your Portfolio</h2>
+                <div class="portfolio-summary">
+                    <div>Cash Balance: <strong id="port-balance">$10,000.00</strong></div>
+                    <div>Total Value: <strong id="port-value">$10,000.00</strong></div>
+                    <div style="grid-column: span 2;">Total P/L: <strong id="port-pl" class="positive">+$0.00</strong></div>
+                </div>
+                <div id="holdings-list" style="background: var(--bg-dark); border-radius: 6px; padding: 5px;"></div>
+            </div>
+
+            <div class="panel">
+                <h2>Transaction History</h2>
+                <div id="transaction-log" style="max-height: 200px; overflow-y: auto; background: var(--bg-dark); border-radius: 6px; padding: 10px;">
+                    <div style="color: #6272a4; text-align: center;">No transactions yet</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- API & State ---
+        const API_BASE = 'http://localhost:8080/api';
+        let authMode = 'login'; // 'login' or 'signup'
+        let currentUser = null;
+        
+        let stocksData = [];
+        let portfolio = { balance: 0, holdings: {}, transactions: [] };
+        let marketInterval = null;
+
+        function toggleAuthMode() {
+            const title = document.getElementById('auth-title');
+            const form = document.querySelector('.auth-form');
+            const toggleBtn = document.getElementById('auth-toggle');
+            
+            title.style.opacity = '0';
+            form.style.opacity = '0';
+            toggleBtn.style.opacity = '0';
+            
+            setTimeout(() => {
+                authMode = authMode === 'login' ? 'signup' : 'login';
+                title.innerText = authMode === 'login' ? 'Welcome Back' : 'Create Account';
+                document.getElementById('auth-btn').innerText = authMode === 'login' ? 'Login' : 'Sign Up';
+                toggleBtn.innerText = authMode === 'login' ? "Don't have an account? Sign up here" : "Already have an account? Login here";
+                document.getElementById('auth-msg').innerText = '';
+                
+                title.style.opacity = '1';
+                form.style.opacity = '1';
+                toggleBtn.style.opacity = '1';
+            }, 300);
+        }
+
+        async function submitAuth() {
+            const user = document.getElementById('auth-user').value.trim();
+            const pass = document.getElementById('auth-pass').value;
+            const msg = document.getElementById('auth-msg');
+            
+            if(!user || !pass) { msg.innerText = "Please fill in all fields."; return; }
+            
+            const endpoint = authMode === 'signup' ? '/signup' : '/login';
+            try {
+                const res = await fetch(API_BASE + endpoint, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username: user, password: pass})
+                });
+                const data = await res.json();
+                
+                if(data.success) {
+                    loginUser(user);
+                } else {
+                    msg.innerText = data.message || "Authentication failed.";
+                }
+            } catch (e) {
+                msg.innerText = "Server error. Is the Java backend running?";
+            }
+        }
+
+        function toggleTheme() {
+            const root = document.documentElement;
+            const btn = document.getElementById('theme-toggle');
+            if (root.getAttribute('data-theme') === 'light') {
+                root.removeAttribute('data-theme');
+                btn.innerText = '☀️';
+                localStorage.setItem('stockSimTheme', 'dark');
+            } else {
+                root.setAttribute('data-theme', 'light');
+                btn.innerText = '🌙';
+                localStorage.setItem('stockSimTheme', 'light');
+            }
+            if (currentUser) updateUI();
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('stockSimTheme');
+            if (savedTheme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+                document.getElementById('theme-toggle').innerText = '🌙';
+            }
+        });
+
+        function loginUser(username) {
+            currentUser = username;
+            sessionStorage.setItem('stockSimSession', username);
+            
+            document.getElementById('auth-view').classList.add('hidden');
+            document.getElementById('app-view').classList.remove('hidden');
+            document.getElementById('account-area').classList.remove('hidden');
+            document.getElementById('current-username').innerText = username;
+            document.getElementById('avatar-icon').innerText = username.charAt(0).toUpperCase();
+            
+            startPolling();
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            sessionStorage.removeItem('stockSimSession');
+            document.getElementById('app-view').classList.add('hidden');
+            document.getElementById('account-area').classList.add('hidden');
+            document.getElementById('auth-view').classList.remove('hidden');
+            document.getElementById('auth-user').value = '';
+            document.getElementById('auth-pass').value = '';
+            document.getElementById('auth-msg').innerText = '';
+            if (marketInterval) clearInterval(marketInterval);
+        }
+
+        window.onload = () => {
+            const sessionUser = sessionStorage.getItem('stockSimSession');
+            if (sessionUser) {
+                loginUser(sessionUser);
+            }
+            startAuthAnimation();
+        };
+
+        async function fetchMarket() {
+            try {
+                const res = await fetch(API_BASE + '/market');
+                const newData = await res.json();
+                
+                if (stocksData.length === 0) {
+                    stocksData = newData.map(s => ({...s, initial: s.price, history: Array(30).fill(s.price)}));
+                    initUI();
+                } else {
+                    newData.forEach(ns => {
+                        const s = stocksData.find(x => x.symbol === ns.symbol);
+                        if (s) {
+                            s.price = ns.price;
+                            s.history.push(ns.price);
+                            if(s.history.length > 40) s.history.shift();
+                        }
+                    });
+                    updateUI();
+                }
+            } catch (e) { console.error("Market fetch error", e); }
+        }
+
+        async function fetchPortfolio() {
+            if(!currentUser) return;
+            try {
+                const res = await fetch(API_BASE + '/portfolio?username=' + currentUser);
+                portfolio = await res.json();
+                updateUI();
+            } catch (e) { console.error("Portfolio fetch error", e); }
+        }
+
+        function startPolling() {
+            fetchMarket();
+            fetchPortfolio();
+            marketInterval = setInterval(() => {
+                fetchMarket();
+                fetchPortfolio();
+            }, 1000);
+        }
+
+        const grid = document.getElementById('stock-grid');
+        const buySelectBox = document.getElementById('buy-symbol');
+        const sellSelectBox = document.getElementById('sell-symbol');
+
+        function initUI() {
+            grid.innerHTML = '';
+            buySelectBox.innerHTML = '';
+            
+            stocksData.forEach(s => {
+                buySelectBox.innerHTML += `<option value="${s.symbol}">${s.symbol}</option>`;
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="card-header">
+                        <span class="symbol">${s.symbol}</span>
+                        <span class="name">${s.name}</span>
+                    </div>
+                    <div class="price" id="price-${s.symbol}">$0.00</div>
+                    <div class="change" id="change-${s.symbol}">+0.00 (0.00%)</div>
+                    <canvas id="canvas-${s.symbol}"></canvas>
+                `;
+                grid.appendChild(card);
+            });
+            updateUI();
+        }
+
+        function updateUI() {
+            let totalStockValue = 0;
+
+            stocksData.forEach(s => {
+                const priceEl = document.getElementById(`price-${s.symbol}`);
+                const changeEl = document.getElementById(`change-${s.symbol}`);
+                if(!priceEl || !changeEl) return;
+                
+                const diff = s.price - s.initial;
+                const pct = (diff / s.initial) * 100;
+                
+                priceEl.innerText = '$' + s.price.toFixed(2);
+                
+                const sign = diff >= 0 ? '+' : '';
+                changeEl.innerText = `${sign}${diff.toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
+                changeEl.className = 'change ' + (diff >= 0 ? 'positive' : 'negative');
+
+                drawSparkline(s);
+
+                if (portfolio.holdings && portfolio.holdings[s.symbol]) {
+                    totalStockValue += s.price * portfolio.holdings[s.symbol];
+                }
+            });
+
+            if(portfolio.balance === undefined) return;
+
+            const totalVal = portfolio.balance + totalStockValue;
+            const pl = totalVal - 10000;
+            
+            document.getElementById('port-balance').innerText = '$' + portfolio.balance.toFixed(2);
+            document.getElementById('port-value').innerText = '$' + totalVal.toFixed(2);
+            
+            const plEl = document.getElementById('port-pl');
+            plEl.innerText = (pl >= 0 ? '+' : '') + '$' + pl.toFixed(2);
+            plEl.className = pl >= 0 ? 'positive' : 'negative';
+
+            const hl = document.getElementById('holdings-list');
+            hl.innerHTML = '';
+            
+            const currentSellSelection = sellSelectBox.value;
+            sellSelectBox.innerHTML = '';
+            
+            let hasHoldings = false;
+            Object.keys(portfolio.holdings || {}).forEach(sym => {
+                const qty = portfolio.holdings[sym];
+                if (qty > 0) {
+                    hasHoldings = true;
+                    const st = stocksData.find(x => x.symbol === sym);
+                    const val = (st ? st.price : 0) * qty;
+                    hl.innerHTML += `<div class="portfolio-item">
+                        <span><span style="color:var(--text-sub)">${sym}</span> x${qty}</span>
+                        <span>$${val.toFixed(2)}</span>
+                    </div>`;
+                    
+                    sellSelectBox.innerHTML += `<option value="${sym}">${sym} (Qty: ${qty})</option>`;
+                }
+            });
+            
+            if(!hasHoldings) {
+                hl.innerHTML = '<div style="padding: 10px; color: #6272a4; text-align: center;">No stocks owned</div>';
+                sellSelectBox.innerHTML = '<option value="">No stocks available to sell</option>';
+            } else {
+                if (currentSellSelection && portfolio.holdings[currentSellSelection]) {
+                    sellSelectBox.value = currentSellSelection;
+                }
+            }
+
+            const tl = document.getElementById('transaction-log');
+            if (tl) {
+                tl.innerHTML = '';
+                if (!portfolio.transactions || portfolio.transactions.length === 0) {
+                    tl.innerHTML = '<div style="color: #6272a4; text-align: center;">No transactions yet</div>';
+                } else {
+                    portfolio.transactions.forEach(t => {
+                        const color = t.type === 'Buy' ? 'var(--green)' : 'var(--red)';
+                        tl.innerHTML += `<div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 13px;">
+                            <span><span style="color:${color}; font-weight:bold;">${t.type}</span> ${t.qty}x ${t.sym}</span>
+                            <span>@ $${parseFloat(t.price).toFixed(2)} (${t.date})</span>
+                        </div>`;
+                    });
+                }
+            }
+        }
+
+        function drawSparkline(stock) {
+            const canvas = document.getElementById(`canvas-${stock.symbol}`);
+            if(!canvas) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * 2;
+            canvas.height = rect.height * 2;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.scale(2, 2);
+            
+            const w = rect.width;
+            const h = rect.height;
+            
+            ctx.clearRect(0, 0, w, h);
+            
+            const history = stock.history;
+            const max = Math.max(...history);
+            const min = Math.min(...history);
+            const range = max === min ? 1 : max - min;
+            
+            const isPositive = stock.price >= stock.initial;
+            const style = getComputedStyle(document.documentElement);
+            const green = style.getPropertyValue('--green').trim() || '#50FA7B';
+            const red = style.getPropertyValue('--red').trim() || '#FF5555';
+            const color = isPositive ? green : red;
+            
+            const grad = ctx.createLinearGradient(0, 0, 0, h);
+            grad.addColorStop(0, color + '66');
+            grad.addColorStop(1, color + '00');
+            
+            ctx.beginPath();
+            const step = w / Math.max(1, history.length - 1);
+            
+            let points = [];
+            history.forEach((val, i) => {
+                const x = i * step;
+                const y = h - ((val - min) / range * (h - 10)) - 5;
+                points.push({x, y});
+            });
+
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2.5;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            
+            points.forEach((p, i) => {
+                if (i === 0) ctx.moveTo(p.x, p.y);
+                else ctx.lineTo(p.x, p.y);
+            });
+            ctx.stroke();
+
+            ctx.lineTo(w, h);
+            ctx.lineTo(0, h);
+            ctx.closePath();
+            ctx.fillStyle = grad;
+            ctx.fill();
+        }
+
+        async function executeTrade(type) {
+            const sym = type === 'buy' ? document.getElementById('buy-symbol').value : document.getElementById('sell-symbol').value;
+            const qty = parseInt(type === 'buy' ? document.getElementById('buy-qty').value : document.getElementById('sell-qty').value);
+            const msg = type === 'buy' ? document.getElementById('buy-msg') : document.getElementById('sell-msg');
+            
+            if (!sym || isNaN(qty) || qty <= 0) {
+                msg.innerText = "Invalid selection.";
+                msg.style.color = "var(--red)";
+                setTimeout(() => { msg.innerText = ""; }, 3000);
+                return;
+            }
+
+            try {
+                const res = await fetch(API_BASE + '/' + type, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username: currentUser, symbol: sym, qty: qty})
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    msg.innerText = `Successfully ${type==='buy'?'bought':'sold'} ${qty} share(s) of ${sym}`;
+                    msg.style.color = "var(--green)";
+                    fetchPortfolio(); // instant refresh
+                } else {
+                    msg.innerText = data.message || "Trade failed.";
+                    msg.style.color = "var(--red)";
+                }
+            } catch (e) {
+                msg.innerText = "Server error.";
+                msg.style.color = "var(--red)";
+            }
+            setTimeout(() => { msg.innerText = ""; }, 3000);
+        }
+
+        // --- Animated Background Logic ---
+        function startAuthAnimation() {
+            const canvas = document.getElementById('auth-bg-canvas');
+            const authView = document.getElementById('auth-view');
+            const authCard = document.querySelector('.auth-card');
+            if(!canvas || !authView) return;
+            const ctx = canvas.getContext('2d');
+            
+            let mouseX = null;
+            let mouseY = null;
+            
+            authView.addEventListener('mousemove', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                mouseX = e.clientX - rect.left;
+                mouseY = e.clientY - rect.top;
+                
+                // Dynamic 3D tilt for the auth card
+                if(authCard) {
+                    authCard.style.animation = 'none'; // pause float
+                    const maxTilt = 8; 
+                    const tiltX = -((e.clientY - window.innerHeight/2) / (window.innerHeight/2)) * maxTilt;
+                    const tiltY = ((e.clientX - window.innerWidth/2) / (window.innerWidth/2)) * maxTilt;
+                    
+                    authCard.style.transform = `rotateX(${tiltX}deg) rotateY(${tiltY}deg) translateY(-5px) scale(1.02)`;
+                    authCard.style.transition = 'transform 0.1s ease';
+                }
+            });
+            
+            authView.addEventListener('mouseleave', () => {
+                mouseX = null;
+                mouseY = null;
+                
+                if(authCard) {
+                    authCard.style.transform = '';
+                    authCard.style.transition = 'transform 0.5s ease';
+                    setTimeout(() => {
+                        if (mouseX === null) authCard.style.animation = '';
+                    }, 500);
+                }
+            });
+
+            const particles = [];
+            const floatingTexts = [];
+            const numParticles = 80;
+            
+            const style = getComputedStyle(document.documentElement);
+            const colorGreen = style.getPropertyValue('--green').trim() || '#50FA7B';
+            const colorRed = style.getPropertyValue('--red').trim() || '#FF5555';
+            
+            for(let i=0; i<numParticles; i++) {
+                particles.push({
+                    x: Math.random() * window.innerWidth,
+                    y: Math.random() * window.innerHeight,
+                    vx: (Math.random() - 0.5) * 1.5,
+                    vy: (Math.random() - 0.5) * 1.5,
+                    radius: Math.random() * 2 + 1,
+                    color: Math.random() > 0.5 ? colorGreen : colorRed,
+                    baseAlpha: Math.random() * 0.5 + 0.2
+                });
+            }
+
+            function draw(time) {
+                if (document.getElementById('auth-view').classList.contains('hidden')) {
+                    requestAnimationFrame(draw);
+                    return;
+                }
+                
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width = rect.width * 2;
+                canvas.height = rect.height * 2;
+                const realW = rect.width;
+                const realH = rect.height;
+                
+                ctx.scale(2, 2);
+                ctx.clearRect(0, 0, realW, realH);
+                
+                // Update and draw particles
+                for(let i=0; i<particles.length; i++) {
+                    let p = particles[i];
+                    
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    
+                    // Bounce off walls
+                    if (p.x < 0 || p.x > realW) p.vx *= -1;
+                    if (p.y < 0 || p.y > realH) p.vy *= -1;
+                    
+                    // Mouse interaction
+                    if (mouseX !== null && mouseY !== null) {
+                        const dx = mouseX - p.x;
+                        const dy = mouseY - p.y;
+                        const dist = Math.sqrt(dx*dx + dy*dy);
+                        if (dist < 120) {
+                            // Attract slightly
+                            p.vx += dx * 0.0005;
+                            p.vy += dy * 0.0005;
+                            
+                            // Draw line to mouse
+                            ctx.beginPath();
+                            ctx.strokeStyle = p.color + Math.floor((1 - dist/120) * 80).toString(16).padStart(2, '0');
+                            ctx.lineWidth = 1;
+                            ctx.moveTo(p.x, p.y);
+                            ctx.lineTo(mouseX, mouseY);
+                            ctx.stroke();
+                        }
+                    }
+                    
+                    // Speed limit
+                    const speed = Math.sqrt(p.vx*p.vx + p.vy*p.vy);
+                    if (speed > 2) {
+                        p.vx = (p.vx / speed) * 2;
+                        p.vy = (p.vy / speed) * 2;
+                    }
+                    
+                    // Draw particle
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = p.color + Math.floor(p.baseAlpha * 255).toString(16).padStart(2, '0');
+                    ctx.fill();
+                    
+                    // Connect with other particles
+                    for(let j=i+1; j<particles.length; j++) {
+                        let p2 = particles[j];
+                        const dx = p.x - p2.x;
+                        const dy = p.y - p2.y;
+                        const dist = Math.sqrt(dx*dx + dy*dy);
+                        
+                        if (dist < 100) {
+                            ctx.beginPath();
+                            const alpha = Math.floor((1 - dist/100) * 50).toString(16).padStart(2, '0');
+                            // Mix colors or use one
+                            ctx.strokeStyle = p.color + alpha;
+                            ctx.lineWidth = 0.5;
+                            ctx.moveTo(p.x, p.y);
+                            ctx.lineTo(p2.x, p2.y);
+                            ctx.stroke();
+                        }
+                    }
+                    
+                    // Occasionally spawn floating text
+                    if (Math.random() < 0.001) {
+                        const isUp = Math.random() > 0.5;
+                        const val = (Math.random() * 100).toFixed(2);
+                        floatingTexts.push({
+                            x: p.x,
+                            y: p.y,
+                            text: isUp ? `▲ $${val}` : `▼ $${val}`,
+                            color: isUp ? colorGreen : colorRed,
+                            life: 1.0
+                        });
+                    }
+                }
+                
+                // Draw floating texts
+                for(let i = floatingTexts.length - 1; i >= 0; i--) {
+                    let ft = floatingTexts[i];
+                    ft.y -= 0.5;
+                    ft.life -= 0.01;
+                    
+                    if (ft.life <= 0) {
+                        floatingTexts.splice(i, 1);
+                        continue;
+                    }
+                    
+                    ctx.fillStyle = ft.color + Math.floor(ft.life * 255).toString(16).padStart(2, '0');
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(ft.text, ft.x, ft.y);
+                }
+                
+                requestAnimationFrame(draw);
+            }
+            requestAnimationFrame(draw);
+        }
+
+        // Start Application
+        // initUI() is now called upon successful login
+        startAuthAnimation();
+    </script>
+</body>
+</html>
