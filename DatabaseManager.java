@@ -11,9 +11,15 @@ public class DatabaseManager {
     private static final String DB_PASS = "#boney@6264464754";
     public static String lastError = "";
 
-    public static Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
+   public static Connection getConnection() throws SQLException {
+    try {
+        Class.forName("com.mysql.cj.jdbc.Driver");
+    } catch (ClassNotFoundException e) {
+        throw new SQLException("MySQL Driver not found.", e);
     }
+
+    return DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
+   }
 
     public static void initDatabase() {
         try { Class.forName("com.mysql.cj.jdbc.Driver"); } catch (Exception ignored) {}
