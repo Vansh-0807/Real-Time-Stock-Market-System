@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: stock-market-simulator
+    env: java
+    buildCommand: javac -cp ".:mysql-connector-j-8.3.0.jar" *.java
+    startCommand: java -cp ".:mysql-connector-j-8.3.0.jar" WebServer
